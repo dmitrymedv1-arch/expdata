@@ -339,7 +339,7 @@ co2_time_ext, co2_current_ext = duplicate_with_noise(co2_time_orig, co2_current_
 
 fig, ax = plt.subplots(figsize=(12, 5))
 ax.plot(co2_time_ext, co2_current_ext, '-', color='#1f77b4', linewidth=0.8, alpha=0.7)
-ax.plot(co2_time_ext[::5], co2_current_ext[::2], 'o', color='#1f77b4', 
+ax.plot(co2_time_ext[::2], co2_current_ext[::2], 'o', color='#1f77b4', 
         markersize=marker_size, markerfacecolor='#1f77b4', 
         markeredgecolor='#1f77b4', alpha=0.5)
 ax.set_xlabel("Time (s)")
@@ -358,7 +358,7 @@ o2_time_ext, o2_current_ext = duplicate_with_noise(o2_time_orig, o2_current_orig
 
 fig, ax = plt.subplots(figsize=(12, 5))
 ax.plot(o2_time_ext, o2_current_ext, '-', color='#d62728', linewidth=0.8, alpha=0.7)
-ax.plot(o2_time_ext[::5], o2_current_ext[::5], 'o', color='#d62728', 
+ax.plot(o2_time_ext[::2], o2_current_ext[::2], 'o', color='#d62728', 
         markersize=marker_size, markerfacecolor='#d62728', 
         markeredgecolor='#d62728', alpha=0.5)
 ax.set_xlabel("Time (s)")
