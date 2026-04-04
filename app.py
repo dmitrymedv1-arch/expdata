@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import random
+from scipy.interpolate import make_interp_spline
 
 # ================== НАУЧНЫЙ СТИЛЬ ГРАФИКОВ ==================
 plt.style.use('default')
@@ -34,7 +35,7 @@ plt.rcParams.update({
     'legend.edgecolor': 'black',
     'figure.dpi': 600,
     'savefig.dpi': 600,
-    'lines.linewidth': 0.8,  # Более тонкая линия по умолчанию
+    'lines.linewidth': 0.8,
     'lines.markersize': 5,
 })
 
@@ -42,10 +43,15 @@ st.set_page_config(page_title="Gas Sensor Analyzer", layout="wide")
 st.title("🔬 Solid-State Electrochemical Gas Sensor")
 st.markdown("### Scientific Analysis of Amperometric Sensor Data")
 
+# ================== ЕДИНЫЕ ЦВЕТА ДЛЯ ВСЕХ ГРАФИКОВ ==================
+COLOR_1 = '#1f77b4'   # Синий
+COLOR_2 = '#d62728'   # Красный
+COLOR_3 = '#2ca02c'   # Зеленый
+
 # ================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==================
 def get_color_palette():
     """Return a list of distinct colors for plotting"""
-    return ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+    return [COLOR_1, COLOR_2, COLOR_3]
 
 def create_marker_style(color, fill_alpha=0.3, edge_alpha=1.0):
     """Create marker style with semi-transparent fill and darker edge"""
@@ -77,6 +83,18 @@ def duplicate_with_noise(time_series, current_series, n_cycles=2, noise_level=0.
         extended_current.extend(new_current)
     
     return np.array(extended_time), np.array(extended_current)
+
+def smooth_curve(x, y, num_points=500):
+    """Smooth a curve using spline interpolation"""
+    if len(x) < 4:
+        return x, y
+    try:
+        x_smooth = np.linspace(x.min(), x.max(), num_points)
+        spline = make_interp_spline(x, y, k=min(3, len(x)-1))
+        y_smooth = spline(x_smooth)
+        return x_smooth, y_smooth
+    except:
+        return x, y
 
 def analyze_step_response(time_series, current_series, step_start_idx, target_pct=90):
     """Analyze step response and return t_response, t90, t_settling"""
@@ -174,7 +192,6 @@ def load_data():
 
 # ================== SIDEBAR ДЛЯ НАСТРОЕК ==================
 st.sidebar.header("🎨 Plot Customization")
-color_palette = get_color_palette()
 
 # Виджеты для динамических графиков
 st.sidebar.subheader("Dynamic Plots Settings")
@@ -182,11 +199,11 @@ marker_size = st.sidebar.slider("Marker size", min_value=2, max_value=15, value=
 noise_level = st.sidebar.slider("Noise level for duplicated cycles", min_value=0.0, max_value=0.01, value=0.002, step=0.0005, format="%.4f")
 n_duplicate_cycles = st.sidebar.selectbox("Number of duplicate cycles", [1, 2], index=1)
 
-st.sidebar.subheader("Static Plots Color Assignment")
-color_assignments = {}
-static_plot_names = ['Fig 2b (700°C)', 'Fig 2b (600°C)', 'Fig 3b (700°C)', 'Fig 3b (600°C)', 'Fig 4b (600°C)', 'Fig 4b (650°C)', 'Fig 4b (700°C)']
-for i, name in enumerate(static_plot_names):
-    color_assignments[name] = st.sidebar.color_picker(f"{name}", color_palette[i % len(color_palette)])
+st.sidebar.subheader("Smoothing & Markers Settings")
+smoothing_enabled = st.sidebar.checkbox("Enable curve smoothing", value=True)
+smoothing_points = st.sidebar.slider("Smoothing points", min_value=100, max_value=1000, value=500, step=50)
+marker_frequency = st.sidebar.slider("Marker frequency (1 = every point)", min_value=1, max_value=20, value=5, step=1)
+marker_offset = st.sidebar.slider("Marker offset (starting point)", min_value=0, max_value=50, value=0, step=1)
 
 # ================== ЗАГРУЗКА ДАННЫХ ==================
 data = load_data()
@@ -194,27 +211,27 @@ data = load_data()
 # ================== СТАТИЧЕСКИЕ ГРАФИКИ ==================
 st.header("📊 Static Characteristics")
 
-# Функция для создания легенды с цветным текстом
-def create_colored_legend(ax, lines_labels):
+# Функция для создания легенды с черным текстом
+def create_legend(ax, lines_labels):
     legend_elements = []
     for line, label in lines_labels:
         legend_elements.append(
-            Line2D([0], [0], color=line.get_color(), linewidth=1.5, 
+            Line2D([0], [0], color='black', linewidth=1.0, 
                    marker=line.get_marker(), markersize=6,
                    label=label, markerfacecolor=line.get_color(),
                    markeredgecolor=line.get_color())
         )
     legend = ax.legend(handles=legend_elements, loc='best', frameon=True)
-    for text, element in zip(legend.get_texts(), legend_elements):
-        text.set_color(element.get_color())
+    for text in legend.get_texts():
+        text.set_color('black')
     return legend
 
 # Fig 2a
 st.subheader("Fig. 2a: Voltammogram (Air, 700°C)")
 fig, ax = plt.subplots(figsize=(5, 4))
-ax.plot(data['fig2a']['U'], data['fig2a']['I'], 'o-', color='#1f77b4', 
-        markersize=marker_size/2, linewidth=0.8, markerfacecolor='#1f77b4', 
-        markeredgecolor='#1f77b4', alpha=0.5)
+ax.plot(data['fig2a']['U'], data['fig2a']['I'], 'o-', color='black', 
+        markersize=marker_size/2, linewidth=0.8, markerfacecolor=COLOR_1, 
+        markeredgecolor=COLOR_1, alpha=0.7)
 ax.axhline(y=1.4, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
 ax.set_xlabel("Voltage (V)")
 ax.set_ylabel("Current (mA)")
@@ -226,42 +243,41 @@ plt.close()
 st.subheader("Fig. 2b: O₂ Calibration")
 fig, ax = plt.subplots(figsize=(5, 4))
 lines_labels = []
-colors_2b = [color_assignments['Fig 2b (700°C)'], color_assignments['Fig 2b (600°C)']]
-for i, (temp, color, marker) in enumerate([('700°C', colors_2b[0], 's'), ('600°C', colors_2b[1], 'o')]):
-    if temp == '700°C':
-        line = ax.plot(data['fig2b']['O2'], data['fig2b']['I_700'], marker=marker, linestyle='-', 
-                       color=color, linewidth=0.8, markersize=marker_size/2,
-                       markerfacecolor=color, markeredgecolor=color, alpha=0.4)[0]
-    else:
-        line = ax.plot(data['fig2b']['O2'], data['fig2b']['I_600'], marker=marker, linestyle='--', 
-                       color=color, linewidth=0.8, markersize=marker_size/2,
-                       markerfacecolor=color, markeredgecolor=color, alpha=0.4)[0]
+temps = ['700°C', '600°C']
+colors = [COLOR_1, COLOR_2]
+markers = ['s', 'o']
+linestyles = ['-', '--']
+for i, (temp, color, marker, ls) in enumerate(zip(temps, colors, markers, linestyles)):
+    col_name = f'I_{temp.replace("°C","")}'
+    line = ax.plot(data['fig2b']['O2'], data['fig2b'][col_name], marker=marker, linestyle=ls, 
+                   color='black', linewidth=0.8, markersize=marker_size/2,
+                   markerfacecolor=color, markeredgecolor=color, alpha=0.7)[0]
     lines_labels.append((line, temp))
 ax.set_xlabel("O₂ Concentration (%)")
 ax.set_ylabel("Limiting Current (mA)")
-create_colored_legend(ax, lines_labels)
+create_legend(ax, lines_labels)
 st.pyplot(fig)
 plt.close()
 
-# Fig 3a
+# Fig 3a (обратный порядок в легенде)
 st.subheader("Fig. 3a: Voltammograms with CO₂")
 fig, ax = plt.subplots(figsize=(6, 4))
-colors_3a = [color_palette[0], color_palette[1], color_palette[2]]
+colors_3a = [COLOR_1, COLOR_2, COLOR_3]
+labels_3a = ['0.70%', '12.00%', '20.50%']
+markers_3a = ['s', 'o', '^']
 lines_labels = []
-for i, (label, color, marker) in enumerate([('0.70%', colors_3a[0], 's'), 
-                                              ('12.00%', colors_3a[1], 'o'), 
-                                              ('20.50%', colors_3a[2], '^')]):
-    valid = data['fig3a'][['U', label]].dropna()
+for label, color, marker in zip(labels_3a, colors_3a, markers_3a):
     valid = data['fig3a'][['U', label]].dropna()
     line = ax.plot(valid['U'], valid[label], marker=marker, linestyle='-', 
-                   color=color, linewidth=0.8, markersize=marker_size/2,
-                   markerfacecolor=color, markeredgecolor=color, alpha=0.4)[0]
+                   color='black', linewidth=0.8, markersize=marker_size/2,
+                   markerfacecolor=color, markeredgecolor=color, alpha=0.7)[0]
     lines_labels.append((line, label))
 ax.axvline(x=0.8, color='gray', linestyle=':', linewidth=0.8, alpha=0.7)
 ax.axvline(x=1.0, color='gray', linestyle=':', linewidth=0.8, alpha=0.7)
 ax.set_xlabel("Voltage (V)")
 ax.set_ylabel("Current (mA)")
-create_colored_legend(ax, lines_labels)
+# Обратный порядок в легенде
+create_legend(ax, list(reversed(lines_labels)))
 st.pyplot(fig)
 plt.close()
 
@@ -269,66 +285,68 @@ plt.close()
 st.subheader("Fig. 3b: CO₂ Calibration")
 fig, ax = plt.subplots(figsize=(5, 4))
 lines_labels = []
-colors_3b = [color_assignments['Fig 3b (700°C)'], color_assignments['Fig 3b (600°C)']]
-for i, (temp, color, marker) in enumerate([('700°C', colors_3b[0], 's'), ('600°C', colors_3b[1], 'o')]):
-    if temp == '700°C':
-        line = ax.plot(data['fig3b']['CO2'], data['fig3b']['I_700'], marker=marker, linestyle='-', 
-                       color=color, linewidth=0.8, markersize=marker_size/2,
-                       markerfacecolor=color, markeredgecolor=color, alpha=0.4)[0]
-    else:
-        line = ax.plot(data['fig3b']['CO2'], data['fig3b']['I_600'], marker=marker, linestyle='--', 
-                       color=color, linewidth=0.8, markersize=marker_size/2,
-                       markerfacecolor=color, markeredgecolor=color, alpha=0.4)[0]
+temps = ['700°C', '600°C']
+colors = [COLOR_1, COLOR_2]
+markers = ['s', 'o']
+linestyles = ['-', '--']
+for i, (temp, color, marker, ls) in enumerate(zip(temps, colors, markers, linestyles)):
+    col_name = f'I_{temp.replace("°C","")}'
+    line = ax.plot(data['fig3b']['CO2'], data['fig3b'][col_name], marker=marker, linestyle=ls, 
+                   color='black', linewidth=0.8, markersize=marker_size/2,
+                   markerfacecolor=color, markeredgecolor=color, alpha=0.7)[0]
     lines_labels.append((line, temp))
 ax.set_xlabel("CO₂ Concentration (%)")
 ax.set_ylabel("Limiting Current (mA)")
-create_colored_legend(ax, lines_labels)
+create_legend(ax, lines_labels)
 st.pyplot(fig)
 plt.close()
 
-# Fig 4a
+# Fig 4a (обратный порядок в легенде)
 st.subheader("Fig. 4a: Proton Cell Voltammograms")
 fig, ax = plt.subplots(figsize=(6, 4))
-colors_4a = [color_palette[3], color_palette[4], color_palette[5], color_palette[6]]
+colors_4a = [COLOR_1, COLOR_2, COLOR_3]
+labels_4a = ['0.50%', '1.50%', '2%', '3.70%']
+colors_4a_full = [COLOR_1, COLOR_2, COLOR_3, COLOR_1]
+markers_4a = ['s', 'o', '^', 'd']
 lines_labels = []
-for i, (label, color, marker) in enumerate([('0.50%', colors_4a[0], 's'),
-                                              ('1.50%', colors_4a[1], 'o'),
-                                              ('2%', colors_4a[2], '^'),
-                                              ('3.70%', colors_4a[3], 'd')]):
+for label, color, marker in zip(labels_4a, colors_4a_full, markers_4a):
     valid = data['fig4a'][['U', label]].dropna()
     line = ax.plot(valid['U'], valid[label], marker=marker, linestyle='-', 
-                   color=color, linewidth=0.8, markersize=marker_size/2,
-                   markerfacecolor=color, markeredgecolor=color, alpha=0.4)[0]
+                   color='black', linewidth=0.8, markersize=marker_size/2,
+                   markerfacecolor=color, markeredgecolor=color, alpha=0.7)[0]
     lines_labels.append((line, label))
 ax.set_xlabel("Voltage (V)")
 ax.set_ylabel("Current (mA)")
-create_colored_legend(ax, lines_labels)
+# Обратный порядок в легенде
+create_legend(ax, list(reversed(lines_labels)))
 st.pyplot(fig)
 plt.close()
 
-# Fig 4b
+# Fig 4b (обратный порядок в легенде)
 st.subheader("Fig. 4b: H₂O Calibration (Proton Cell)")
 fig, ax = plt.subplots(figsize=(5, 4))
 lines_labels = []
-colors_4b = [color_assignments['Fig 4b (600°C)'], color_assignments['Fig 4b (650°C)'], color_assignments['Fig 4b (700°C)']]
-for i, (temp, color, marker, ls) in enumerate([('600°C', colors_4b[0], 'o', '--'),
-                                                ('650°C', colors_4b[1], 's', '-'),
-                                                ('700°C', colors_4b[2], '^', '-')]):
+temps = ['600°C', '650°C', '700°C']
+colors = [COLOR_1, COLOR_2, COLOR_3]
+markers = ['o', 's', '^']
+linestyles = ['--', '-', '-']
+for temp, color, marker, ls in zip(temps, colors, markers, linestyles):
     line = ax.plot(data['fig4b']['H2O'], data['fig4b'][f'I_{temp.replace("°C","")}'], 
-                   marker=marker, linestyle=ls, color=color, linewidth=0.8, 
+                   marker=marker, linestyle=ls, color='black', linewidth=0.8, 
                    markersize=marker_size/2, markerfacecolor=color, 
-                   markeredgecolor=color, alpha=0.4)[0]
+                   markeredgecolor=color, alpha=0.7)[0]
     lines_labels.append((line, temp))
 ax.set_xlabel("H₂O Concentration (%)")
 ax.set_ylabel("Limiting Current (mA)")
-create_colored_legend(ax, lines_labels)
+# Обратный порядок в легенде
+create_legend(ax, list(reversed(lines_labels)))
 st.pyplot(fig)
 plt.close()
 
 # ================== ДИНАМИЧЕСКИЙ АНАЛИЗ ==================
 st.header("⏱️ Dynamic Characteristics & Response Time Analysis")
 
-# CO2 динамика с дубляжом и маркерами
+# CO2 динамика с сглаживанием и настраиваемыми маркерами
 st.subheader("Fig. 5a: CO₂ Step Response (700°C) with Extended Cycles")
 
 co2_time_orig = data['dynamic_co2']['time'].values
@@ -338,17 +356,27 @@ co2_current_orig = data['dynamic_co2']['I'].values
 co2_time_ext, co2_current_ext = duplicate_with_noise(co2_time_orig, co2_current_orig, n_duplicate_cycles, noise_level)
 
 fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(co2_time_ext, co2_current_ext, '-', color='#1f77b4', linewidth=0.8, alpha=0.7)
-ax.plot(co2_time_ext[::2], co2_current_ext[::2], 'o', color='#1f77b4', 
-        markersize=marker_size, markerfacecolor='#1f77b4', 
-        markeredgecolor='#1f77b4', alpha=0.5)
+
+if smoothing_enabled:
+    co2_time_smooth, co2_current_smooth = smooth_curve(co2_time_ext, co2_current_ext, smoothing_points)
+    ax.plot(co2_time_smooth, co2_current_smooth, '-', color='black', linewidth=0.8, alpha=0.7)
+else:
+    ax.plot(co2_time_ext, co2_current_ext, '-', color='black', linewidth=0.8, alpha=0.7)
+
+# Маркеры с настраиваемой частотой
+marker_indices = np.arange(marker_offset, len(co2_time_ext), marker_frequency)
+if len(marker_indices) > 0:
+    ax.plot(co2_time_ext[marker_indices], co2_current_ext[marker_indices], 'o', 
+            color=COLOR_1, markersize=marker_size, 
+            markerfacecolor=COLOR_1, markeredgecolor=COLOR_1, alpha=0.6)
+
 ax.set_xlabel("Time (s)")
 ax.set_ylabel("Current (mA)")
 ax.set_title(f"Dynamic response to CO₂ concentration changes (duplicated {n_duplicate_cycles} cycle(s), noise={noise_level})")
 st.pyplot(fig)
 plt.close()
 
-# O2 динамика с дубляжом и маркерами
+# O2 динамика с сглаживанием и настраиваемыми маркерами
 st.subheader("Fig. 5b: O₂ Step Response (700°C) with Extended Cycles")
 
 o2_time_orig = data['dynamic_o2']['time'].values
@@ -357,10 +385,20 @@ o2_current_orig = data['dynamic_o2']['I'].values
 o2_time_ext, o2_current_ext = duplicate_with_noise(o2_time_orig, o2_current_orig, n_duplicate_cycles, noise_level)
 
 fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(o2_time_ext, o2_current_ext, '-', color='#d62728', linewidth=0.8, alpha=0.7)
-ax.plot(o2_time_ext[::2], o2_current_ext[::2], 'o', color='#d62728', 
-        markersize=marker_size, markerfacecolor='#d62728', 
-        markeredgecolor='#d62728', alpha=0.5)
+
+if smoothing_enabled:
+    o2_time_smooth, o2_current_smooth = smooth_curve(o2_time_ext, o2_current_ext, smoothing_points)
+    ax.plot(o2_time_smooth, o2_current_smooth, '-', color='black', linewidth=0.8, alpha=0.7)
+else:
+    ax.plot(o2_time_ext, o2_current_ext, '-', color='black', linewidth=0.8, alpha=0.7)
+
+# Маркеры с настраиваемой частотой
+marker_indices = np.arange(marker_offset, len(o2_time_ext), marker_frequency)
+if len(marker_indices) > 0:
+    ax.plot(o2_time_ext[marker_indices], o2_current_ext[marker_indices], 'o', 
+            color=COLOR_2, markersize=marker_size, 
+            markerfacecolor=COLOR_2, markeredgecolor=COLOR_2, alpha=0.6)
+
 ax.set_xlabel("Time (s)")
 ax.set_ylabel("Current (mA)")
 ax.set_title(f"Dynamic response to O₂ concentration changes (duplicated {n_duplicate_cycles} cycle(s), noise={noise_level})")
@@ -372,7 +410,7 @@ st.subheader("📊 Dynamic Performance Comparison (Bar Chart)")
 
 # Данные для столбчатой диаграммы
 metrics = ['t_response', 't90', 't_settling']
-o2_values = [20, 50, 80]      # средние значения в секундах
+o2_values = [20, 50, 80]
 co2_values = [30, 60, 95]
 h2o_values = [25, 55, 85]
 
@@ -380,29 +418,31 @@ x = np.arange(len(metrics))
 width = 0.25
 
 fig, ax = plt.subplots(figsize=(8, 5))
-bars1 = ax.bar(x - width, o2_values, width, label='O₂ Sensor', color='#d62728', alpha=0.7, edgecolor='#d62728', linewidth=1.2)
-bars2 = ax.bar(x, co2_values, width, label='CO₂ Sensor', color='#1f77b4', alpha=0.7, edgecolor='#1f77b4', linewidth=1.2)
-bars3 = ax.bar(x + width, h2o_values, width, label='H₂O Sensor', color='#2ca02c', alpha=0.7, edgecolor='#2ca02c', linewidth=1.2)
+bars1 = ax.bar(x - width, o2_values, width, label='O₂ Sensor', color=COLOR_2, alpha=0.7, edgecolor='black', linewidth=1.0)
+bars2 = ax.bar(x, co2_values, width, label='CO₂ Sensor', color=COLOR_1, alpha=0.7, edgecolor='black', linewidth=1.0)
+bars3 = ax.bar(x + width, h2o_values, width, label='H₂O Sensor', color=COLOR_3, alpha=0.7, edgecolor='black', linewidth=1.0)
 
 ax.set_xlabel('Performance Metric')
 ax.set_ylabel('Time (seconds)')
 ax.set_title('Dynamic Performance Comparison at 700°C')
 ax.set_xticks(x)
 ax.set_xticklabels(metrics)
-ax.legend()
+
+# Легенда с черным текстом
+legend = ax.legend(loc='upper left', frameon=True)
+for text in legend.get_texts():
+    text.set_color('black')
 
 # Добавление значений на столбцы
 for bars in [bars1, bars2, bars3]:
     for bar in bars:
         height = bar.get_height()
         ax.annotate(f'{height}', xy=(bar.get_x() + bar.get_width()/2, height),
-                    xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontsize=9)
+                    xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontsize=9, color='black')
 
 st.pyplot(fig)
 plt.close()
 
 # ================== ДОПОЛНИТЕЛЬНЫЕ ПОЯСНЕНИЯ ==================
 st.markdown("---")
-st.caption("**Notes:")
-
-
+st.caption("**Notes:** All static plots use black connecting lines with colored markers. Dynamic plots feature adjustable smoothing and marker placement.")
