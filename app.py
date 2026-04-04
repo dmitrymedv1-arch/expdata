@@ -188,6 +188,9 @@ static_plot_names = ['Fig 2b (700°C)', 'Fig 2b (600°C)', 'Fig 3b (700°C)', 'F
 for i, name in enumerate(static_plot_names):
     color_assignments[name] = st.sidebar.color_picker(f"{name}", color_palette[i % len(color_palette)])
 
+# ================== ЗАГРУЗКА ДАННЫХ ==================
+data = load_data()
+
 # ================== СТАТИЧЕСКИЕ ГРАФИКИ ==================
 st.header("📊 Static Characteristics")
 
