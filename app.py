@@ -248,9 +248,10 @@ st.subheader("Fig. 3a: Voltammograms with CO₂")
 fig, ax = plt.subplots(figsize=(6, 4))
 colors_3a = [color_palette[0], color_palette[1], color_palette[2]]
 lines_labels = []
-for i, (label, color, marker) in enumerate([('0.70% O₂', colors_3a[0], 's'), 
-                                              ('12.00% O₂', colors_3a[1], 'o'), 
-                                              ('20.50% O₂', colors_3a[2], '^')]):
+for i, (label, color, marker) in enumerate([('0.70%', colors_3a[0], 's'), 
+                                              ('12.00%', colors_3a[1], 'o'), 
+                                              ('20.50%', colors_3a[2], '^')]):
+    valid = data['fig3a'][['U', label]].dropna()
     valid = data['fig3a'][['U', label]].dropna()
     line = ax.plot(valid['U'], valid[label], marker=marker, linestyle='-', 
                    color=color, linewidth=0.8, markersize=marker_size/2,
