@@ -68,19 +68,44 @@ def duplicate_with_subdivision(time_series, current_series, n_subdivisions=2):
     return np.array(extended_time), np.array(extended_current)
 
 def create_colored_legend(ax, lines_labels):
-    """Create legend with colored text matching markers"""
+    """Create legend with colored markers and colored text"""
     legend_elements = []
     for line, label in lines_labels:
         legend_elements.append(
             Line2D([0], [0], color=line.get_color(), linewidth=1.5, 
-                   marker=line.get_marker(), markersize=6,
-                   label=label, markerfacecolor=line.get_color(),
-                   markeredgecolor=line.get_color())
+                   marker=line.get_marker(), markersize=8,
+                   label=label, markerfacecolor=line.get_markerfacecolor(),
+                   markeredgecolor=line.get_markeredgecolor(),
+                   markeredgewidth=line.get_markeredgewidth())
         )
     legend = ax.legend(handles=legend_elements, loc='best', frameon=True)
     for text, element in zip(legend.get_texts(), legend_elements):
-        text.set_color(element.get_color())
+        text.set_color(element.get_markerfacecolor())
     return legend
+
+def shift_along_curve(x, y, shift_percent):
+    """Shift points along the curve by interpolating"""
+    if shift_percent == 0 or len(x) < 2:
+        return x, y
+    
+    # Calculate cumulative distance along the curve
+    dx = np.diff(x)
+    dy = np.diff(y)
+    dist = np.sqrt(dx**2 + dy**2)
+    cum_dist = np.concatenate([[0], np.cumsum(dist)])
+    total_dist = cum_dist[-1]
+    
+    # Calculate shift in distance units
+    shift_dist = shift_percent * total_dist / 100
+    
+    # Shift indices
+    new_cum_dist = (cum_dist + shift_dist) % total_dist
+    
+    # Interpolate new positions
+    new_x = np.interp(new_cum_dist, cum_dist, x)
+    new_y = np.interp(new_cum_dist, cum_dist, y)
+    
+    return new_x, new_y
 
 # ================== ДАННЫЕ ==================
 @st.cache_data
@@ -145,11 +170,17 @@ def load_data():
 # ================== SIDEBAR ДЛЯ НАСТРОЕК ==================
 st.sidebar.header("🎨 Plot Customization")
 
+# Виджеты для размеров маркеров
+st.sidebar.subheader("Marker Sizes")
+marker_size_static = st.sidebar.slider("Marker size (Static plots, Fig 1-4)", 
+                                        min_value=2, max_value=15, value=6, step=1)
+marker_size_dynamic = st.sidebar.slider("Marker size (Dynamic plots)", 
+                                         min_value=2, max_value=15, value=6, step=1)
+
 # Виджеты для динамических графиков
 st.sidebar.subheader("Dynamic Plots Settings")
-marker_size = st.sidebar.slider("Marker size", min_value=2, max_value=15, value=6, step=1)
 point_density = st.sidebar.slider("Point density (marker step)", min_value=1, max_value=20, value=4, step=1)
-point_offset = st.sidebar.slider("Point offset shift (pixels)", min_value=0, max_value=10, value=0, step=1)
+point_offset = st.sidebar.slider("Point offset shift (%)", min_value=0, max_value=100, value=0, step=1)
 
 st.sidebar.subheader("Static Plots Color Assignment")
 color_assignments = {}
@@ -168,8 +199,9 @@ st.header("📊 Static Characteristics")
 st.subheader("Fig. 2a: Voltammogram (Air, 700°C)")
 fig, ax = plt.subplots(figsize=(5, 4))
 ax.plot(data['fig2a']['U'], data['fig2a']['I'], 'o-', color='black', 
-        markersize=marker_size/2, linewidth=0.8, markerfacecolor=COLOR1, 
-        markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)
+        markersize=marker_size_static/2, linewidth=0.8, 
+        markerfacecolor=COLOR1, markeredgecolor=COLOR1, 
+        markeredgewidth=0.5, alpha=0.7)
 ax.axhline(y=1.4, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
 ax.set_xlabel("Voltage (V)")
 ax.set_ylabel("Current (mA)")
@@ -185,12 +217,12 @@ colors_2b = [color_assignments['Fig 2b (700°C)'], color_assignments['Fig 2b (60
 for i, (temp, color, marker) in enumerate([('700°C', colors_2b[0], 's'), ('600°C', colors_2b[1], 'o')]):
     if temp == '700°C':
         line = ax.plot(data['fig2b']['O2'], data['fig2b']['I_700'], marker=marker, linestyle='-', 
-                       color='black', linewidth=0.8, markersize=marker_size/2,
-                       markerfacecolor=color, markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)[0]
+                       color='black', linewidth=0.8, markersize=marker_size_static/2,
+                       markerfacecolor=color, markeredgecolor=color, markeredgewidth=0.5, alpha=0.7)[0]
     else:
         line = ax.plot(data['fig2b']['O2'], data['fig2b']['I_600'], marker=marker, linestyle='--', 
-                       color='black', linewidth=0.8, markersize=marker_size/2,
-                       markerfacecolor=color, markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)[0]
+                       color='black', linewidth=0.8, markersize=marker_size_static/2,
+                       markerfacecolor=color, markeredgecolor=color, markeredgewidth=0.5, alpha=0.7)[0]
     lines_labels.append((line, temp))
 ax.set_xlabel("O₂ Concentration (%)")
 ax.set_ylabel("Limiting Current (mA)")
@@ -208,8 +240,9 @@ lines_labels = []
 for i, label in enumerate(labels_3a):
     valid = data['fig3a'][['U', label]].dropna()
     line = ax.plot(valid['U'], valid[label], marker=markers_3a[i], linestyle='-', 
-                   color='black', linewidth=0.8, markersize=marker_size/2,
-                   markerfacecolor=colors_3a[i], markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)[0]
+                   color='black', linewidth=0.8, markersize=marker_size_static/2,
+                   markerfacecolor=colors_3a[i], markeredgecolor=colors_3a[i], 
+                   markeredgewidth=0.5, alpha=0.7)[0]
     lines_labels.append((line, label))
 ax.axvline(x=0.8, color='gray', linestyle=':', linewidth=0.8, alpha=0.7)
 ax.axvline(x=1.0, color='gray', linestyle=':', linewidth=0.8, alpha=0.7)
@@ -227,12 +260,12 @@ colors_3b = [color_assignments['Fig 3b (700°C)'], color_assignments['Fig 3b (60
 for i, (temp, color, marker) in enumerate([('700°C', colors_3b[0], 's'), ('600°C', colors_3b[1], 'o')]):
     if temp == '700°C':
         line = ax.plot(data['fig3b']['CO2'], data['fig3b']['I_700'], marker=marker, linestyle='-', 
-                       color='black', linewidth=0.8, markersize=marker_size/2,
-                       markerfacecolor=color, markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)[0]
+                       color='black', linewidth=0.8, markersize=marker_size_static/2,
+                       markerfacecolor=color, markeredgecolor=color, markeredgewidth=0.5, alpha=0.7)[0]
     else:
         line = ax.plot(data['fig3b']['CO2'], data['fig3b']['I_600'], marker=marker, linestyle='--', 
-                       color='black', linewidth=0.8, markersize=marker_size/2,
-                       markerfacecolor=color, markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)[0]
+                       color='black', linewidth=0.8, markersize=marker_size_static/2,
+                       markerfacecolor=color, markeredgecolor=color, markeredgewidth=0.5, alpha=0.7)[0]
     lines_labels.append((line, temp))
 ax.set_xlabel("CO₂ Concentration (%)")
 ax.set_ylabel("Limiting Current (mA)")
@@ -250,8 +283,9 @@ lines_labels = []
 for i, label in enumerate(labels_4a):
     valid = data['fig4a'][['U', label]].dropna()
     line = ax.plot(valid['U'], valid[label], marker=markers_4a[i], linestyle='-', 
-                   color='black', linewidth=0.8, markersize=marker_size/2,
-                   markerfacecolor=colors_4a[i], markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)[0]
+                   color='black', linewidth=0.8, markersize=marker_size_static/2,
+                   markerfacecolor=colors_4a[i], markeredgecolor=colors_4a[i], 
+                   markeredgewidth=0.5, alpha=0.7)[0]
     lines_labels.append((line, label))
 ax.set_xlabel("Voltage (V)")
 ax.set_ylabel("Current (mA)")
@@ -270,8 +304,8 @@ temps = ['700°C', '650°C', '600°C']  # Обратный порядок
 for i, temp in enumerate(temps):
     line = ax.plot(data['fig4b']['H2O'], data['fig4b'][f'I_{temp.replace("°C","")}'], 
                    marker=markers_4b[i], linestyle=linestyles_4b[i], color='black', linewidth=0.8, 
-                   markersize=marker_size/2, markerfacecolor=colors_4b[i], 
-                   markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)[0]
+                   markersize=marker_size_static/2, markerfacecolor=colors_4b[i], 
+                   markeredgecolor=colors_4b[i], markeredgewidth=0.5, alpha=0.7)[0]
     lines_labels.append((line, temp))
 ax.set_xlabel("H₂O Concentration (%)")
 ax.set_ylabel("Limiting Current (mA)")
@@ -291,23 +325,21 @@ co2_current_orig = data['dynamic_co2']['I'].values
 # Дублирование с субдивизией
 co2_time_ext, co2_current_ext = duplicate_with_subdivision(co2_time_orig, co2_current_orig, n_subdivisions=2)
 
-# Применяем смещение к маркерам (визуальное смещение)
-offset_shift = point_offset / 100.0
-
 fig, ax = plt.subplots(figsize=(12, 5))
 ax.plot(co2_time_ext, co2_current_ext, '-', color='black', linewidth=0.8, alpha=0.7)
 
-# Выбираем точки с заданной плотностью и добавляем смещение
+# Выбираем точки с заданной плотностью
 marker_indices = np.arange(0, len(co2_time_ext), point_density)
 marker_times = co2_time_ext[marker_indices]
 marker_currents = co2_current_ext[marker_indices]
-# Добавляем небольшое вертикальное смещение для наглядности
-if offset_shift > 0:
-    marker_currents = marker_currents + np.random.normal(0, offset_shift * np.std(marker_currents), len(marker_currents))
+
+# Применяем смещение вдоль кривой
+if point_offset > 0:
+    marker_times, marker_currents = shift_along_curve(marker_times, marker_currents, point_offset)
 
 ax.plot(marker_times, marker_currents, 'o', color=COLOR1, 
-        markersize=marker_size, markerfacecolor=COLOR1, 
-        markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)
+        markersize=marker_size_dynamic, markerfacecolor=COLOR1, 
+        markeredgecolor=COLOR1, markeredgewidth=0.5, alpha=0.7)
 ax.set_xlabel("Time (s)")
 ax.set_ylabel("Current (mA)")
 ax.set_title("Dynamic response to CO₂ concentration changes")
@@ -325,16 +357,18 @@ o2_time_ext, o2_current_ext = duplicate_with_subdivision(o2_time_orig, o2_curren
 fig, ax = plt.subplots(figsize=(12, 5))
 ax.plot(o2_time_ext, o2_current_ext, '-', color='black', linewidth=0.8, alpha=0.7)
 
-# Выбираем точки с заданной плотностью и добавляем смещение
+# Выбираем точки с заданной плотностью
 marker_indices = np.arange(0, len(o2_time_ext), point_density)
 marker_times = o2_time_ext[marker_indices]
 marker_currents = o2_current_ext[marker_indices]
-if offset_shift > 0:
-    marker_currents = marker_currents + np.random.normal(0, offset_shift * np.std(marker_currents), len(marker_currents))
+
+# Применяем смещение вдоль кривой
+if point_offset > 0:
+    marker_times, marker_currents = shift_along_curve(marker_times, marker_currents, point_offset)
 
 ax.plot(marker_times, marker_currents, 'o', color=COLOR2, 
-        markersize=marker_size, markerfacecolor=COLOR2, 
-        markeredgecolor='black', markeredgewidth=0.5, alpha=0.7)
+        markersize=marker_size_dynamic, markerfacecolor=COLOR2, 
+        markeredgecolor=COLOR2, markeredgewidth=0.5, alpha=0.7)
 ax.set_xlabel("Time (s)")
 ax.set_ylabel("Current (mA)")
 ax.set_title("Dynamic response to O₂ concentration changes")
@@ -386,4 +420,4 @@ plt.close()
 
 # ================== ДОПОЛНИТЕЛЬНЫЕ ПОЯСНЕНИЯ ==================
 st.markdown("---")
-st.caption("**Notes:** .")
+st.caption("**Notes:** Markers have the same edge color as fill color. Point offset shifts markers along the curve, not as noise.")
