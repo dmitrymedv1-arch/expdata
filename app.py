@@ -235,15 +235,16 @@ st.subheader("Fig. 3a: Voltammograms with CO₂")
 fig, ax = plt.subplots(figsize=(6, 4))
 colors_3a = [COLOR1, COLOR2, COLOR3]
 markers_3a = ['s', 'o', '^']
-labels_3a = ['20.5%', '12.0%', '0.7%']  # Обратный порядок
+data_labels = ['20.50%', '12.00%', '0.70%']  # Названия колонок в данных
+display_labels = ['20.5%', '12.0%', '0.7%']  # Отображаемые в легенде
 lines_labels = []
-for i, label in enumerate(labels_3a):
-    valid = data['fig3a'][['U', label]].dropna()
-    line = ax.plot(valid['U'], valid[label], marker=markers_3a[i], linestyle='-', 
+for i, (data_label, display_label) in enumerate(zip(data_labels, display_labels)):
+    valid = data['fig3a'][['U', data_label]].dropna()
+    line = ax.plot(valid['U'], valid[data_label], marker=markers_3a[i], linestyle='-', 
                    color='black', linewidth=0.8, markersize=marker_size_static/2,
                    markerfacecolor=colors_3a[i], markeredgecolor=colors_3a[i], 
                    markeredgewidth=0.5, alpha=0.7)[0]
-    lines_labels.append((line, label))
+    lines_labels.append((line, display_label))
 ax.axvline(x=0.8, color='gray', linestyle=':', linewidth=0.8, alpha=0.7)
 ax.axvline(x=1.0, color='gray', linestyle=':', linewidth=0.8, alpha=0.7)
 ax.set_xlabel("Voltage (V)")
