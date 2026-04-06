@@ -279,8 +279,7 @@ st.subheader("Fig. 4a: Proton Cell Voltammograms")
 fig, ax = plt.subplots(figsize=(6, 4))
 colors_4a = [COLOR1, COLOR2, COLOR3, COLOR1]
 markers_4a = ['s', 'o', '^', 'd']
-data_labels_4a = ['3.70%', '2%', '1.50%', '0.50%']
-display_labels_4a = ['3.7%', '2%', '1.5%', '0.5%']
+labels_4a = ['3.70%', '2%', '1.50%', '0.50%']
 lines_labels = []
 for i, label in enumerate(labels_4a):
     valid = data['fig4a'][['U', label]].dropna()
