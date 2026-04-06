@@ -235,7 +235,7 @@ st.subheader("Fig. 3a: Voltammograms with CO₂")
 fig, ax = plt.subplots(figsize=(6, 4))
 colors_3a = [COLOR1, COLOR2, COLOR3]
 markers_3a = ['s', 'o', '^']
-labels_3a = ['20.50%', '12.00%', '0.70%']  # Обратный порядок
+labels_3a = ['20.5%', '12.0%', '0.7%']  # Обратный порядок
 lines_labels = []
 for i, label in enumerate(labels_3a):
     valid = data['fig3a'][['U', label]].dropna()
